@@ -167,11 +167,51 @@ void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPo
     // ...
 }
 
+double getMedian(std::vector<double> v) {
+	double median = 0.0;
+    int size = v.size();
+    std::sort(v.begin(), v.end());
+    if (size % 2 == 0) {
+        median = (v[size / 2] + v[size/2 - 1]) / 2;
+    } else {
+        median = v[size / 2];
+    }
+    return median;
+}
+
 
 void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
-                     std::vector<LidarPoint> &lidarPointsCurr, double frameRate, double &TTC)
-{
-    // ...
+                     std::vector<LidarPoint> &lidarPointsCurr, double frameRate, double &TTC){
+
+    vector<double> dPrev, dCurr;
+    int prevSize = lidarPointsPrev.size();
+    int currSize = lidarPointsCurr.size();
+    for(auto it=lidarPointsPrev.begin(); it!=lidarPointsPrev.end(); ++it) {
+        dPrev.push_back(it->x);
+    }
+    for(auto it=lidarPointsCurr.begin(); it!=lidarPointsCurr.end(); ++it) {
+        dCurr.push_back(it->x);
+    }
+
+    double xPrev = 0;
+    double xCurr = 0;
+    double dT = 1 / frameRate;
+
+    std::sort(dPrev.begin(), dPrev.end());
+    std::sort(dCurr.begin(), dCurr.end());
+    
+    if (prevSize % 2 ) {
+        xPrev = dPrev[prevSize / 2];
+    } else {
+        xPrev = (dPrev[prevSize / 2] + dPrev[prevSize/ 2 - 1]) / 2;
+    }
+
+    if (currSize % 2 ) {
+        xCurr = dCurr[currSize / 2];
+    } else {
+        xCurr = (dCurr[currSize / 2] + dCurr[currSize/ 2 - 1]) / 2;
+    }
+    TTC = xCurr * dT / (xPrev - xCurr);
 }
 
 
