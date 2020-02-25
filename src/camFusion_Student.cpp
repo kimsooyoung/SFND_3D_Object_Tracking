@@ -118,10 +118,33 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
         cv::line(topviewImg, cv::Point(0, y), cv::Point(imageSize.width, y), cv::Scalar(255, 0, 0));
     }
 
+    double angle = 0;
+
+    // get rotation matrix for rotating the image around its center in pixel coordinates
+    cv::Point2f center((topviewImg.cols-1)/2.0, (topviewImg.rows-1)/2.0);
+    cv::Mat rot = cv::getRotationMatrix2D(center, angle, 1.0);
+    // determine bounding rectangle, center not relevant
+    cv::Rect2f bbox = cv::RotatedRect(cv::Point2f(), topviewImg.size(), angle).boundingRect2f();
+    // adjust transformation matrix
+    rot.at<double>(0,2) += bbox.width/2.0 - topviewImg.cols/2.0;
+    rot.at<double>(1,2) += bbox.height/2.0 - topviewImg.rows/2.0;
+
+    // ratate and resize image
+    cv::Mat dst;
+    cv::warpAffine(topviewImg, dst, rot, bbox.size());
+    cv::resize(dst, dst, cv::Size(dst.cols/3, dst.rows/3));
+    
     // display image
     string windowName = "3D Objects";
-    cv::namedWindow(windowName, 1);
-    cv::imshow(windowName, topviewImg);
+    cv::namedWindow(windowName, 6);
+    cv::imshow(windowName, dst);
+    cout << "Press key to continue to next frame" << endl;
+    cv::waitKey(0); // wait for key to be pressed
+
+    // display image
+    // string windowName = "3D Objects";
+    // cv::namedWindow(windowName, 1);
+    // cv::imshow(windowName, topviewImg);
 
     if(bWait)
     {
@@ -154,5 +177,52 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
 
 void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bbBestMatches, DataFrame &prevFrame, DataFrame &currFrame)
 {
-    // ...
+    // cv::DMatch reference : https://docs.opencv.org/3.4/d4/de0/classcv_1_1DMatch.html  
+
+    int prevBoxNum = prevFrame.boundingBoxes.size();
+    int currBoxNum = currFrame.boundingBoxes.size();
+	int p_count[prevBoxNum][currBoxNum] = {};
+    for (auto match : matches) {
+    	cv::KeyPoint query = prevFrame.keypoints[match.queryIdx];
+    	cv::KeyPoint train = currFrame.keypoints[match.trainIdx];
+
+        bool is_query_found = false;
+        bool is_train_found = false;
+
+    	int query_id = 0;
+    	int train_id = 0;
+
+        for( int i = 0; i < prevBoxNum; i++ ){
+            if ( prevFrame.boundingBoxes[i].roi.contains( query.pt ) ){
+                is_query_found = true;
+                query_id = i;
+                break;
+            }
+        }
+        for( int i = 0; i < currBoxNum; i++ ){
+            if ( currFrame.boundingBoxes[i].roi.contains( train.pt ) ){
+                is_train_found = true;
+                train_id = i;
+                break;
+            }
+        }
+    	if (is_query_found && is_train_found) {
+            p_count[query_id][train_id] += 1;
+    	}
+    }
+    for (int i = 0; i < prevBoxNum; i++){
+        int id, max = 0;
+        for (int j = 0; j < currBoxNum; j++){
+            if( max < p_count[i][j] ){
+                max = p_count[i][j];
+                id = j;
+            }
+        }
+        bbBestMatches[i] = id;
+    }
+
+    bool bMsg = true;
+    if (bMsg)
+        for (int i = 0; i < prevFrame.boundingBoxes.size(); i++)
+             cout << "Box " << i << " matches " << bbBestMatches[i]<< " box" << endl;    
 }

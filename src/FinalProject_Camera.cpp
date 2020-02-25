@@ -89,9 +89,15 @@ int main(int argc, const char *argv[])
         cv::Mat img = cv::imread(imgFullFilename);
 
         // push image into data frame buffer
+        // DataFrame frame;
+        // frame.cameraImg = img;
+        // dataBuffer.push_back(frame);
+
         DataFrame frame;
         frame.cameraImg = img;
         dataBuffer.push_back(frame);
+        if( dataBuffer.size() > dataBufferSize )
+            dataBuffer.erase(dataBuffer.begin());
 
         cout << "#1 : LOAD IMAGE INTO BUFFER done" << endl;
 
@@ -99,9 +105,11 @@ int main(int argc, const char *argv[])
         /* DETECT & CLASSIFY OBJECTS */
 
         float confThreshold = 0.2;
-        float nmsThreshold = 0.4;        
+        float nmsThreshold = 0.4;    
+        // yolo based object-detection
         detectObjects((dataBuffer.end() - 1)->cameraImg, (dataBuffer.end() - 1)->boundingBoxes, confThreshold, nmsThreshold,
                       yoloBasePath, yoloClassesFile, yoloModelConfiguration, yoloModelWeights, bVis);
+
 
         cout << "#2 : DETECT & CLASSIFY OBJECTS done" << endl;
 
@@ -114,6 +122,7 @@ int main(int argc, const char *argv[])
         loadLidarFromFile(lidarPoints, lidarFullFilename);
 
         // remove Lidar points based on distance properties
+        // only focus on former vehicle, if you want to consider other lane, this parameter might be changed
         float minZ = -1.5, maxZ = -0.9, minX = 2.0, maxX = 20.0, maxY = 2.0, minR = 0.1; // focus on ego lane
         cropLidarPoints(lidarPoints, minX, maxX, maxY, minZ, maxZ, minR);
     
@@ -140,11 +149,12 @@ int main(int argc, const char *argv[])
         
         
         // REMOVE THIS LINE BEFORE PROCEEDING WITH THE FINAL PROJECT
-        continue; // skips directly to the next image without processing what comes beneath
+        // continue; // skips directly to the next image without processing what comes beneath
 
         /* DETECT IMAGE KEYPOINTS */
 
         // convert current image to grayscale
+        // if color image get into the neural network, output becomes much much worse
         cv::Mat imgGray;
         cv::cvtColor((dataBuffer.end()-1)->cameraImg, imgGray, cv::COLOR_BGR2GRAY);
 
@@ -152,13 +162,12 @@ int main(int argc, const char *argv[])
         vector<cv::KeyPoint> keypoints; // create empty feature list for current image
         string detectorType = "SHITOMASI";
 
-        if (detectorType.compare("SHITOMASI") == 0)
-        {
+        if (detectorType.compare("SHITOMASI") == 0){
             detKeypointsShiTomasi(keypoints, imgGray, false);
-        }
-        else
-        {
-            //...
+        }else if ( detectorType.compare("HARRIS") == 0 ) {
+            detKeypointsHarris(keypoints, imgGray, false);
+        }else {
+            detKeypointsModern(keypoints, imgGray, detectorType, false);
         }
 
         // optional : limit number of keypoints (helpful for debugging and learning)
@@ -279,7 +288,7 @@ int main(int argc, const char *argv[])
                         putText(visImg, str, cv::Point2f(80, 50), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0,0,255));
 
                         string windowName = "Final Results : TTC";
-                        cv::namedWindow(windowName, 4);
+                        cv::namedWindow(windowName, 6);
                         cv::imshow(windowName, visImg);
                         cout << "Press key to continue to next frame" << endl;
                         cv::waitKey(0);
