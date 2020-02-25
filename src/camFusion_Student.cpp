@@ -167,19 +167,6 @@ void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPo
     // ...
 }
 
-double getMedian(std::vector<double> v) {
-	double median = 0.0;
-    int size = v.size();
-    std::sort(v.begin(), v.end());
-    if (size % 2 == 0) {
-        median = (v[size / 2] + v[size/2 - 1]) / 2;
-    } else {
-        median = v[size / 2];
-    }
-    return median;
-}
-
-
 void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
                      std::vector<LidarPoint> &lidarPointsCurr, double frameRate, double &TTC){
 
