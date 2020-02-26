@@ -10,6 +10,7 @@
 
 using namespace std;
 
+bool DEBUG_CAMFUSION = false;
 
 // Create groups of Lidar points whose projection into the camera falls into the same bounding box
 void clusterLidarWithROI(std::vector<BoundingBox> &boundingBoxes, std::vector<LidarPoint> &lidarPoints, float shrinkFactor, cv::Mat &P_rect_xx, cv::Mat &R_rect_xx, cv::Mat &RT)
@@ -135,19 +136,17 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
     cv::resize(dst, dst, cv::Size(dst.cols/3, dst.rows/3));
     
     // display image
-    string windowName = "3D Objects";
-    cv::namedWindow(windowName, 6);
-    cv::imshow(windowName, dst);
-    cout << "Press key to continue to next frame" << endl;
-    cv::waitKey(0); // wait for key to be pressed
-
-    // display image
     // string windowName = "3D Objects";
     // cv::namedWindow(windowName, 1);
     // cv::imshow(windowName, topviewImg);
 
     if(bWait)
     {
+        // display image
+        string windowName = "3D Objects";
+        cv::namedWindow(windowName, 6);
+        cv::imshow(windowName, dst);
+        cout << "Press key to continue to next frame" << endl;
         cv::waitKey(0); // wait for key to be pressed
     }
 }
@@ -182,8 +181,8 @@ void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint
     for( auto i =0; i < tempMatches.size(); i++ )
         if( abs(distances[i] - mean) < stdev )
             boundingBox.kptMatches.push_back(kptMatches[i]);
-
-    std::cout << "Filtered kptMatches number : " << boundingBox.kptMatches.size() << std::endl;
+    if(DEBUG_CAMFUSION)
+        std::cout << "Filtered kptMatches number : " << boundingBox.kptMatches.size() << std::endl;
 }
 
 
@@ -300,8 +299,7 @@ void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bb
         bbBestMatches[i] = id;
     }
 
-    bool showBoxMatch = true;
-    if (showBoxMatch)
+    if (DEBUG_CAMFUSION)
         for (int i = 0; i < prevFrame.boundingBoxes.size(); i++)
              std::cout << "Box " << i << " matched to " << bbBestMatches[i] << std::endl;
 }
