@@ -31,3 +31,21 @@ In this final project, you will implement the missing parts in the schematic. To
 2. Make a build directory in the top level project directory: `mkdir build && cd build`
 3. Compile: `cmake .. && make`
 4. Run it: `./3D_object_tracking`.
+
+## FP.1 : Match 3D Objects
+> implement the method "matchBoundingBoxes"
+
+## FP.2 : Compute Lidar-based TTC
+> compute the time-to-collision for all matched 3D objects based on Lidar measurements alone
+
+## FP.3 : Associate Keypoint Correspondences with Bounding Boxes
+> find all keypoint matches that belong to each 3D object.
+
+## FP.4 : Compute Camera-based TTC
+
+## FP.5 : Performance Evaluation 1
+> Look for several examples where you have the impression that the Lidar-based TTC estimate is way off. Once you have found those, describe your observations and provide a sound argumentation why you think this happened.
+
+
+## FP.6 : Performance Evaluation 2
+> running the different detector / descriptor combinations and looking at the differences in TTC estimation. Find out which methods perform best and also include several examples where camera-based TTC estimation is way off.
