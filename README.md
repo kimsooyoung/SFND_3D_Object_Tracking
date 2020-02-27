@@ -35,17 +35,170 @@ In this final project, you will implement the missing parts in the schematic. To
 ## FP.1 : Match 3D Objects
 > implement the method "matchBoundingBoxes"
 
+```c++
+void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bbBestMatches, DataFrame &prevFrame, DataFrame &currFrame)
+{
+    // cv::DMatch reference : https://docs.opencv.org/3.4/d4/de0/classcv_1_1DMatch.html  
+
+    int prevBoxNum = prevFrame.boundingBoxes.size();
+    int currBoxNum = currFrame.boundingBoxes.size();
+	int p_count[prevBoxNum][currBoxNum] = {};
+    for (auto match : matches) {
+    	cv::KeyPoint query = prevFrame.keypoints[match.queryIdx];
+    	cv::KeyPoint train = currFrame.keypoints[match.trainIdx];
+
+        bool is_query_found = false;
+        bool is_train_found = false;
+
+    	int query_id = 0;
+    	int train_id = 0;
+
+        for( int i = 0; i < prevBoxNum; i++ ){
+            if ( prevFrame.boundingBoxes[i].roi.contains( query.pt ) ){
+                is_query_found = true;
+                query_id = i;
+                break;
+            }
+        }
+        for( int i = 0; i < currBoxNum; i++ ){
+            if ( currFrame.boundingBoxes[i].roi.contains( train.pt ) ){
+                is_train_found = true;
+                train_id = i;
+                break;
+            }
+        }
+    	if (is_query_found && is_train_found) {
+            p_count[query_id][train_id] += 1;
+    	}
+    }
+    for (int i = 0; i < prevBoxNum; i++){
+        int id, max = 0;
+        for (int j = 0; j < currBoxNum; j++){
+            if( max < p_count[i][j] ){
+                max = p_count[i][j];
+                id = j;
+            }
+        }
+        bbBestMatches[i] = id;
+    }
+
+    if (DEBUG_CAMFUSION)
+        for (int i = 0; i < prevFrame.boundingBoxes.size(); i++)
+             std::cout << "Box " << i << " matched to " << bbBestMatches[i] << std::endl;
+}
+```
+
 ## FP.2 : Compute Lidar-based TTC
 > compute the time-to-collision for all matched 3D objects based on Lidar measurements alone
+
+```c++
+void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
+                     std::vector<LidarPoint> &lidarPointsCurr, double frameRate, double &TTC){
+
+    vector<double> dPrev, dCurr;
+    int prevSize = lidarPointsPrev.size();
+    int currSize = lidarPointsCurr.size();
+    for(auto it=lidarPointsPrev.begin(); it!=lidarPointsPrev.end(); ++it) {
+        dPrev.push_back(it->x);
+    }
+    for(auto it=lidarPointsCurr.begin(); it!=lidarPointsCurr.end(); ++it) {
+        dCurr.push_back(it->x);
+    }
+    double dT = 1 / frameRate;
+
+    std::sort(dPrev.begin(), dPrev.end());
+    std::sort(dCurr.begin(), dCurr.end());
+
+    long medIndexPrev = floor(prevSize / 2.0);
+    double xPrev = prevSize % 2 == 0 ? (dPrev[medIndexPrev - 1] + dPrev[medIndexPrev]) / 2.0 : dPrev[medIndexPrev]; 
+
+    long medIndexCurr = floor(currSize / 2.0);
+    double xCurr = currSize % 2 == 0 ? (dCurr[medIndexCurr - 1] + dCurr[medIndexCurr]) / 2.0 : dCurr[medIndexCurr]; 
+    
+    TTC = xCurr * dT / (xPrev - xCurr);
+}
+```
 
 ## FP.3 : Associate Keypoint Correspondences with Bounding Boxes
 > find all keypoint matches that belong to each 3D object.
 
+```c++
+void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPoint> &kptsCurr, std::vector<cv::DMatch> &kptMatches)
+{
+    // todo : find all keypoint matches that belong to each 3D object
+    std::vector<cv::DMatch> tempMatches;
+    for( auto kptMatch : kptMatches ){
+        // cv::KeyPoint pPrev = kptsPrev[kptMatch.queryIdx];
+        cv::KeyPoint pCurr = kptsCurr[kptMatch.trainIdx];
+        if( boundingBox.roi.contains(pCurr.pt) )
+            tempMatches.push_back(kptMatch);
+    }
+    vector<double> distances; 
+    for( auto itr = tempMatches.begin(); itr != tempMatches.end(); itr++ ){
+        cv::KeyPoint pPrev = kptsPrev[itr->queryIdx];
+        cv::KeyPoint pCurr = kptsCurr[itr->trainIdx];
+        distances.push_back(sqrt(pow(pPrev.pt.x - pCurr.pt.x, 2) + pow(pPrev.pt.y - pCurr.pt.y, 2)));
+    }
+    
+    double sum = std::accumulate(distances.begin(), distances.end(), 0.0);
+    double mean = sum / distances.size();
+
+    std::vector<double> diff(distances.size());
+    std::transform(distances.begin(),distances.end(),diff.begin(),std::bind2nd(std::minus<double>(),mean));
+    double sq_sum = std::inner_product(diff.begin(), diff.end(), diff.begin(), 0.0);
+    double stdev = std::sqrt(sq_sum / distances.size());
+
+    for( auto i =0; i < tempMatches.size(); i++ )
+        if( abs(distances[i] - mean) < stdev )
+            boundingBox.kptMatches.push_back(kptMatches[i]);
+    if(DEBUG_CAMFUSION)
+        std::cout << "Filtered kptMatches number : " << boundingBox.kptMatches.size() << std::endl;
+}
+```
+
 ## FP.4 : Compute Camera-based TTC
+```c++
+void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
+                     std::vector<LidarPoint> &lidarPointsCurr, double frameRate, double &TTC){
+
+    vector<double> dPrev, dCurr;
+    int prevSize = lidarPointsPrev.size();
+    int currSize = lidarPointsCurr.size();
+    for(auto it=lidarPointsPrev.begin(); it!=lidarPointsPrev.end(); ++it) {
+        dPrev.push_back(it->x);
+    }
+    for(auto it=lidarPointsCurr.begin(); it!=lidarPointsCurr.end(); ++it) {
+        dCurr.push_back(it->x);
+    }
+    double dT = 1 / frameRate;
+
+    std::sort(dPrev.begin(), dPrev.end());
+    std::sort(dCurr.begin(), dCurr.end());
+
+    long medIndexPrev = floor(prevSize / 2.0);
+    double xPrev = prevSize % 2 == 0 ? (dPrev[medIndexPrev - 1] + dPrev[medIndexPrev]) / 2.0 : dPrev[medIndexPrev]; 
+
+    long medIndexCurr = floor(currSize / 2.0);
+    double xCurr = currSize % 2 == 0 ? (dCurr[medIndexCurr - 1] + dCurr[medIndexCurr]) / 2.0 : dCurr[medIndexCurr]; 
+    
+    TTC = xCurr * dT / (xPrev - xCurr);
+}
+```
 
 ## FP.5 : Performance Evaluation 1
 > Look for several examples where you have the impression that the Lidar-based TTC estimate is way off. Once you have found those, describe your observations and provide a sound argumentation why you think this happened.
 
+If you see the consencutive pictures by manually, you can catch that front vehicle is getting closer to camera (also closer to Lidar.)
+But in the step between picture 2~5, camera TTC goes up, moreover Lidar TTC suddenly goes up to 20seconds.
+Maybe the reason for that is...
+1. Sensor erroneous (ex - light reflection)
+2. Velocity of front vehicle goes up actually (since this TTC model is based on Constant velocity model)
+3. TTC is calculated based on outlier ( This can be happend, since I used median when choosing the point. Moreover the std-variant at picture 3 seems like larger than other pictures )
 
 ## FP.6 : Performance Evaluation 2
 > running the different detector / descriptor combinations and looking at the differences in TTC estimation. Find out which methods perform best and also include several examples where camera-based TTC estimation is way off.
+
+Which detector /descriptor combination is best -> Already done in Mid-term project.
+On base of that result. Here's the Google SpreadSheet of some tasks.
+
+Which combination is best (in Accuracy) -> Also in the Sheet above.
