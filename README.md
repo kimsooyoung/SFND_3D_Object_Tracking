@@ -198,7 +198,17 @@ Maybe the reason for that is...
 ## FP.6 : Performance Evaluation 2
 > running the different detector / descriptor combinations and looking at the differences in TTC estimation. Find out which methods perform best and also include several examples where camera-based TTC estimation is way off.
 
-Which detector /descriptor combination is best -> Already done in Mid-term project.
-On base of that result. Here's the Google SpreadSheet of some tasks.
+Which detector /descriptor combination is best -> In Mid-term project, I found that 
+1. FAST + BRIEF
+2. ORB + BRIEF
+3. BRIEF + BRISK
+those combinations are suitable for our case.
 
-Which combination is best (in Accuracy) -> Also in the Sheet above.
+Let's see whether those things still best in this case
+Here's the [Google SpreadSheet](https://docs.google.com/spreadsheets/d/175UXWGtkNnRr4e7rKXONoMUjOBZpzO9gMPYLuDNd5Pw/edit?usp=sharing) for comparing.
+
+![Screenshot from 2020-02-27 14-15-07](https://user-images.githubusercontent.com/12381733/75414359-a4d4be80-596b-11ea-913a-9191d024dc92.png)
+
+According to this report, AZAKE shows great result for calculating TTC.
+Moreover FAST + BRIEF / BRIEF + BRISK combination also performed pretty good results.
+But, There was some outliers in ORB results. 
