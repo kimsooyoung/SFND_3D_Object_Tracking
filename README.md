@@ -126,31 +126,24 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
 void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPoint> &kptsCurr, std::vector<cv::DMatch> &kptMatches)
 {
     // todo : find all keypoint matches that belong to each 3D object
-    std::vector<cv::DMatch> tempMatches;
-    for( auto kptMatch : kptMatches ){
-        // cv::KeyPoint pPrev = kptsPrev[kptMatch.queryIdx];
-        cv::KeyPoint pCurr = kptsCurr[kptMatch.trainIdx];
-        if( boundingBox.roi.contains(pCurr.pt) )
-            tempMatches.push_back(kptMatch);
+    float distanceSum = 0.0f;
+    int inlierNum = 0;
+    for(cv::DMatch& kptMatch : kptMatches) {
+        if(boundingBox.roi.contains(kptsCurr[kptMatch.trainIdx].pt)){
+            distanceSum += kptMatch.distance; 
+            inlierNum++;
+        }
     }
-    vector<double> distances; 
-    for( auto itr = tempMatches.begin(); itr != tempMatches.end(); itr++ ){
-        cv::KeyPoint pPrev = kptsPrev[itr->queryIdx];
-        cv::KeyPoint pCurr = kptsCurr[itr->trainIdx];
-        distances.push_back(sqrt(pow(pPrev.pt.x - pCurr.pt.x, 2) + pow(pPrev.pt.y - pCurr.pt.y, 2)));
+    if(inlierNum == 0)
+        return;
+    float avgDistance = distanceSum /= inlierNum;
+    for(cv::DMatch& kptMatch : kptMatches) {
+        cv::Point pCurr = kptsCurr[kptMatch.trainIdx].pt;
+        if(boundingBox.roi.contains(pCurr) && kptMatch.distance < avgDistance) {
+            boundingBox.kptMatches.push_back(kptMatch);
+        }
     }
-    
-    double sum = std::accumulate(distances.begin(), distances.end(), 0.0);
-    double mean = sum / distances.size();
 
-    std::vector<double> diff(distances.size());
-    std::transform(distances.begin(),distances.end(),diff.begin(),std::bind2nd(std::minus<double>(),mean));
-    double sq_sum = std::inner_product(diff.begin(), diff.end(), diff.begin(), 0.0);
-    double stdev = std::sqrt(sq_sum / distances.size());
-
-    for( auto i =0; i < tempMatches.size(); i++ )
-        if( abs(distances[i] - mean) < stdev )
-            boundingBox.kptMatches.push_back(kptMatches[i]);
     if(DEBUG_CAMFUSION)
         std::cout << "Filtered kptMatches number : " << boundingBox.kptMatches.size() << std::endl;
 }
