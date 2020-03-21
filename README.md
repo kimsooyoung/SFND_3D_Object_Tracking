@@ -33,7 +33,7 @@ In this final project, you will implement the missing parts in the schematic. To
 4. Run it: `./3D_object_tracking`.
 
 ## FP.1 : Match 3D Objects
-> implement the method "matchBoundingBoxes"
+> implement the method "matchBoundingBoxes", which takes as input both the previous and the current data frames and provides as output the ids of the matched regions of interest (i.e. the boxID property)“. Matches must be the ones with the highest number of keypoint correspondences.
 
 ```c++
 void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bbBestMatches, DataFrame &prevFrame, DataFrame &currFrame)
