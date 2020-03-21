@@ -22,7 +22,7 @@
 
 using namespace std;
 
-bool DEBUGGING_MODE = false;
+bool DEBUGGING_MODE = true;
 
 /* MAIN PROGRAM */
 int main(int argc, const char *argv[])
